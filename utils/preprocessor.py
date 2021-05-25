@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-20 16:12:22
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-21 14:46:53
+LastEditTime: 2021-05-24 21:15:34
 FilePath: /Chinese-Dialogue-System/utils/preprocessor.py
 '''
 
@@ -224,3 +224,4 @@ if __name__ == "__main__":
                              root_path, 'data/train_no_blank'),
                          pair=True)
     logging.info('training set created.')
+    

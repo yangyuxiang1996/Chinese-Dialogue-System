@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-21 12:32:33
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-21 15:42:23
+LastEditTime: 2021-05-24 13:46:17
 FilePath: /Chinese-Dialogue-System/retrieval/word2vec.py
 '''
 import os
@@ -80,7 +80,7 @@ def train_w2v(train, to_file):
     w2v_model.train(corpus, epochs=15, total_examples=w2v_model.corpus_count)
     if not os.path.exists(os.path.dirname(to_file)):
         os.makedirs(os.path.dirname(to_file))
-    w2v_model.save(to_file)
+    w2v_model.wv.save(to_file)
 
 
 if __name__ == "__main__":
