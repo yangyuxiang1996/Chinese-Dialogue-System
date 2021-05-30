@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-20 15:55:20
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-21 11:16:20
+LastEditTime: 2021-05-26 12:45:57
 FilePath: /Chinese-Dialogue-System/config.py
 '''
 import os
@@ -50,5 +50,3 @@ class Config(object):
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
-    
-

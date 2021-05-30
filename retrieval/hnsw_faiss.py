@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-22 09:24:45
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-25 14:42:13
+LastEditTime: 2021-05-26 21:01:08
 FilePath: /Chinese-Dialogue-System/retrieval/hnsw_faiss.py
 '''
 import time
@@ -42,6 +42,8 @@ def wam(sentence, w2v_model):
         if word in w2v_model:
             wv = w2v_model.wv[word]
             sen_vec += wv
+        else:
+            sen_vec += np.random.randn(300).astype("float32")
 
     return sen_vec / sen_len
 
@@ -121,6 +123,8 @@ class HNSW(object):
         dim = self.w2v_model.vector_size
         index = faiss.IndexHNSWFlat(dim, m)
         index.hnsw.efConstruction = ef
+        res = faiss.StandardGpuResources()  # use a single GPU
+        faiss.index_cpu_to_gpu(res, 0, index)  # make it a GPU index
         index.verbose = True
 
         logging.info('xb: {}'.format(vecs.shape))
@@ -164,6 +168,8 @@ class HNSW(object):
         test_vec = test_vec.reshape(1, -1)
 
         D, I = self.index.search(test_vec, k)
+        logging.info("D: {}".format(D))
+        logging.info("I: {}".format(I))
 
         return pd.concat(
             (self.data.iloc[I[0]]['custom'].reset_index(),
@@ -178,8 +184,7 @@ if __name__ == "__main__":
                 Config.M,
                 Config.hnsw_path,
                 Config.train_path)
-    test = '我要转人工'
-    print(hnsw.search(test, k=4))
-    eval_vecs = np.stack(hnsw.data['custom_vec'].values).reshape(-1, 300)
-    eval_vecs.astype('float32')
-    hnsw.evaluate(hnsw.index, eval_vecs[:1000])
+    test = '我要退款'
+    print(hnsw.search(test, k=10))
+    eval_vecs = np.stack(hnsw.data['custom_vec'].values).reshape(-1, 300).astype('float32')
+    hnsw.evaluate(hnsw.index, eval_vecs[:10000])

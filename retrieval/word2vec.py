@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-21 12:32:33
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-24 13:46:17
+LastEditTime: 2021-05-30 20:56:35
 FilePath: /Chinese-Dialogue-System/retrieval/word2vec.py
 '''
 import os
