@@ -5,8 +5,8 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-20 16:12:22
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-24 21:15:34
-FilePath: /Chinese-Dialogue-System/utils/preprocessor.py
+LastEditTime: 2021-06-05 23:04:53
+FilePath: /Chinese-Dialogue-System/utils/preprocessing.py
 '''
 
 import sys
@@ -96,7 +96,7 @@ def read_file(path, is_train=False):
                 session_id_next, custom_id_next, is_assistance_next = \
                     line[2], line[1], line[3]
             sessions.add(session_id_next)
-            if session_id != session_id_next and session_id != '': # 当前会话id结束, 把上一个会话的最后记录存起来
+            if session_id != session_id_next and session_id != '':  # 当前会话id结束, 把上一个会话的最后记录存起来
                 fc = filter_content(content)
                 if fc != '':
                     tmp.append([
@@ -224,4 +224,3 @@ if __name__ == "__main__":
                              root_path, 'data/train_no_blank'),
                          pair=True)
     logging.info('training set created.')
-    

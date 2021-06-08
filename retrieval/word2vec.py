@@ -5,13 +5,13 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-21 12:32:33
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-30 20:56:35
+LastEditTime: 2021-06-05 23:13:12
 FilePath: /Chinese-Dialogue-System/retrieval/word2vec.py
 '''
 import os
 import sys
 sys.path.append('..')
-from utils.preprocessor import clean, read_file
+from utils.preprocessing import clean, read_file
 from config import Config
 import logging
 import multiprocessing
@@ -69,13 +69,12 @@ def train_w2v(train, to_file):
     cores = multiprocessing.cpu_count()
     w2v_model = Word2Vec(min_count=2,
                          window=2,
-                         size=300,
+                         vector_size=300,
                          sample=6e-5,
                          alpha=0.03,
                          min_alpha=0.0007,
                          negative=15,
-                         workers=cores - 1,
-                         iter=7)
+                         workers=cores - 1)
     w2v_model.build_vocab(corpus)
     w2v_model.train(corpus, epochs=15, total_examples=w2v_model.corpus_count)
     if not os.path.exists(os.path.dirname(to_file)):

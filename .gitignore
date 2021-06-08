@@ -4,3 +4,9 @@ file/
 .vscode/
 model/
 *.csv
+lib/
+data/LCCC-base-split
+data/intention
+data/generative
+data/ranking_dataset.zip
+

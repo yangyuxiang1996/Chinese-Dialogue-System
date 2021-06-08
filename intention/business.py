@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-20 23:03:12
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-25 07:16:27
+LastEditTime: 2021-06-05 22:54:14
 FilePath: /Chinese-Dialogue-System/intention/business.py
 '''
 import jieba
@@ -15,9 +15,10 @@ import fasttext
 import jieba.posseg as pseg
 import pandas as pd
 from tqdm import tqdm
+import time
 import sys
 sys.path.append('..')
-from utils.preprocessor import clean, filter_content
+from utils.preprocessing import clean, filter_content
 from config import Config
 tqdm.pandas()
 logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
@@ -136,6 +137,7 @@ class Intention(object):
         @return: fasttext model
         '''
         logging.info('Training classifier.')
+        start_time = time.time()
 
         classifier = fasttext.train_supervised(model_train_file,
                                                label="__label__",
@@ -152,6 +154,8 @@ class Intention(object):
             os.mkdir(os.path.dirname(self.model_path))
         classifier.save_model(self.model_path)
         logging.info('Model saved.')
+        logging.info('used time: {:.4f}s'.format(time.time() - start_time))
+        
         return classifier
 
     def test(self, classifier, model_test_file):
@@ -180,7 +184,9 @@ class Intention(object):
         clean_text = clean(filter_content(text))
         logging.info('text: %s' % text)
         logging.info('clean text: %s' % clean_text)
+        start_time = time.time()
         label, score = self.fast.predict(clean_text)
+        logging.info('used time: {:.4f}s'.format(time.time() - start_time))
         return label, score
 
 
@@ -192,5 +198,5 @@ if __name__ == "__main__":
                    kw_path=Config.keyword_path,
                    from_train=True,
                    only_train=False)
-    print(it.predict('你 好 想 问 有 卖 鞋 垫 吗 [ S E P ] [ 链 接 x ]'))
+    print(it.predict('你好想问有卖鞋垫吗[SEP][链接x]'))
     print(it.predict('今天天气真好'))

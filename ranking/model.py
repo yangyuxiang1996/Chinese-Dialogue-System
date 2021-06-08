@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-31 15:22:01
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-03 08:06:00
+LastEditTime: 2021-06-06 11:38:23
 FilePath: /Chinese-Dialogue-System/ranking/model.py
 Description:
 '''
@@ -105,9 +105,10 @@ class MatchNN(nn.Module):
         q2 = self.bert_tokenizer.tokenize(q2)
 
         result = list(map(self.dataPro.trunate_and_pad, q1, q2))
-        seq_ids = torch.Tensor([i[0] for i in result]).type(torch.long)
-        seq_masks = torch.Tensor([i[0] for i in result]).type(torch.long)
-        seq_segments = torch.Tensor([i[0] for i in result]).type(torch.long)
+        seqs = [i[0] for i in result]
+        seq_ids = torch.Tensor([i[1] for i in result]).type(torch.long)
+        seq_masks = torch.Tensor([i[2] for i in result]).type(torch.long)
+        seq_segments = torch.Tensor([i[3] for i in result]).type(torch.long)
         if self.is_cuda:
             seq_ids = seq_ids.to(self.device)
             seq_masks = seq_masks.to(self.device)

@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-22 09:24:45
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-26 21:01:08
+LastEditTime: 2021-06-08 22:42:43
 FilePath: /Chinese-Dialogue-System/retrieval/hnsw_faiss.py
 '''
 import time
@@ -17,7 +17,7 @@ import numpy as np
 from gensim.models import KeyedVectors
 import faiss
 sys.path.append('..')
-from utils.preprocessor import clean
+from utils.preprocessing import clean
 from config import Config
 from tqdm import tqdm
 tqdm.pandas()
@@ -51,8 +51,9 @@ def wam(sentence, w2v_model):
 class HNSW(object):
     def __init__(self,
                  w2v_path,
-                 ef=Config.ef_construction,
                  M=Config.M,
+                 efConstruction=Config.efConstruction,
+                 efSearch=Config.efSearch,
                  model_path=None,
                  data_path=None,
                  ):
@@ -64,8 +65,9 @@ class HNSW(object):
         elif data_path:
             # 训练
             self.index = self.build_hnsw(model_path,
-                                         ef=ef,
-                                         m=M)
+                                         M=M,
+                                         efConstruction=efConstruction,
+                                         efSearch=efSearch)
         else:
             logging.error('No existing model and no building data provided.')
 
@@ -104,7 +106,7 @@ class HNSW(object):
         logging.info('\t %7.3f ms per query, R@1 %.4f, missing_rate %.4f' %
                      ((t1 - t0) * 1000.0 / nq, recall_at_1, missing_rate))
 
-    def build_hnsw(self, to_file, ef=2000, m=64):
+    def build_hnsw(self, to_file, M=64, efConstruction=2000, efSearch=32):
         '''
         @description: 训练hnsw模型
         @param {type}
@@ -121,27 +123,29 @@ class HNSW(object):
         # for i, vec in enumerate(self.data['assistance_vec'].values):
         #     vecs[i, :] = vec
         dim = self.w2v_model.vector_size
-        index = faiss.IndexHNSWFlat(dim, m)
-        index.hnsw.efConstruction = ef
+        index_hnsw = faiss.IndexHNSWFlat(dim, M)
+        index_hnsw.hnsw.efConstruction = efConstruction
+        index_hnsw.hnsw.efSearch = efSearch
+
         res = faiss.StandardGpuResources()  # use a single GPU
-        faiss.index_cpu_to_gpu(res, 0, index)  # make it a GPU index
-        index.verbose = True
+        gpu_index_hnsw = faiss.index_cpu_to_gpu(res, 0, index_hnsw)  # make it a GPU index
+        gpu_index_hnsw.verbose = True
 
         logging.info('xb: {}'.format(vecs.shape))
         logging.info('dtype: {}'.format(vecs.dtype))
-        index.add(vecs)
+        gpu_index_hnsw.add(vecs)
 
-        logging.info("total: %s" % str(index.ntotal))
+        logging.info("total: %s" % str(gpu_index_hnsw.ntotal))
 
         assert to_file is not None
         logging.info('Saving hnsw index to %s' % to_file)
         if not os.path.exists(os.path.dirname(to_file)):
             os.mkdir(os.path.dirname(to_file))
-        faiss.write_index(index, to_file)
+        faiss.write_index(gpu_index_hnsw, to_file)
 
-        self.evaluate(index, vecs[:10000])
+        self.evaluate(gpu_index_hnsw, vecs[:10000])
 
-        return index
+        return gpu_index_hnsw
 
     def load_hnsw(self, model_path):
         '''
@@ -180,8 +184,9 @@ class HNSW(object):
 
 if __name__ == "__main__":
     hnsw = HNSW(Config.w2v_path,
-                Config.ef_construction,
                 Config.M,
+                Config.efConstruction,
+                Config.efSearch,
                 Config.hnsw_path,
                 Config.train_path)
     test = '我要退款'
