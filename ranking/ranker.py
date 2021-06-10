@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-05 17:47:49
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-06 12:36:17
+LastEditTime: 2021-06-10 08:54:01
 FilePath: /Chinese-Dialogue-System/ranking/ranker.py
 Description:
 '''
@@ -76,14 +76,20 @@ class RANK(object):
                                     quoting=csv.QUOTE_NONE)
         if do_train:
             logging.info('Training mode')
-            self.train_data = self.generate_feature(self.train_data)
+#             self.train_data = self.generate_feature(self.train_data)
+            logging.info("train_data columns: {}".format(self.train_data.columns))
+            logging.info("train_data shape: {}".format(self.train_data.shape))
+            logging.info("train_data: {}".format(self.train_data[:5]))
             self.dev_data = self.generate_feature(self.dev_data)
+            logging.info("dev_data shape: {}".format(self.dev_data.shape))
+            exit
             self.trainer()
             self.save(model_path)
 
         else:
             logging.info('Predicting mode')
             self.test_data = self.generate_feature(self.test_data)
+            logging.info("test_data shape: {}".format(self.test_data.shape))
             self.ranker = joblib.load(model_path)
             self.predict(self.test_data)
 
@@ -96,14 +102,13 @@ class RANK(object):
         '''
         # 生成人工特征
         logging.info('Generating feature...')
-        similarity = TextSimilarity()
-        data['features'] = data.progress_apply(lambda row: similarity.generate_all(
-            row['question1'], row['question2']), axis=1)
-        data_features = data['features'].apply(pd.Series)
-        data = pd.concat([data, data_features],
-                         axis=1).drop('features', axis=1)
+#         data['features'] = data.apply(lambda row: self.ts.generate_all(
+#             row['question1'], row['question2']), axis=1)
+#         data_features = data['features'].apply(pd.Series)
+#         data = pd.concat([data, data_features],
+#                          axis=1).drop('features', axis=1)
         # 生成深度匹配特征
-        data['bert_feature'] = data.progress_apply(lambda row: self.matchingNN.predict(
+        data['bert_feature'] = data.apply(lambda row: self.matchingNN.predict(
             row['question1'], row['question2'])[1], axis=1)
 
         data['label'] = data['label'].astype('int8')

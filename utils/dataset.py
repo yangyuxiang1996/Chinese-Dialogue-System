@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-31 15:25:55
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-03 08:28:02
+LastEditTime: 2021-06-10 08:54:41
 FilePath: /Chinese-Dialogue-System/utils/dataset.py
 Description: 
 '''
@@ -93,12 +93,25 @@ class DataPrecessForSentence(Dataset):
             seq_segment : shape等于seq，单句，取值都为0 ，双句按照01切分
         """
         # 对超长序列进行截断
+#         assert(type(seq_1) == 'list')
+#         assert(type(seq_2) == 'list')
+        if isinstance(seq_1, str):
+            seq_1 = list(seq_1)
+        if isinstance(seq_2, str):
+            seq_2 = list(seq_2)
+        
+#         print("seq_1:", seq_1)
+#         print("seq_2:", seq_2)
         if len(seq_1) > ((self.max_seq_len - 3) // 2):
             seq_1 = seq_1[0:(self.max_seq_len - 3) // 2]
         if len(seq_2) > ((self.max_seq_len - 3) // 2):
             seq_2 = seq_2[0:(self.max_seq_len - 3) // 2]
-
+        
+#         print("seq_1:", seq_1)
+#         print("seq_2:", seq_2)
+        
         seq = ['[CLS]'] + seq_1 + ['[SEP]'] + seq_2 + ['[SEP]']
+#         print("seq:", seq)
         seq_segment = [0] * (len(seq_1) + 2) + [1] * (len(seq_2) + 1)
 
         # ID化

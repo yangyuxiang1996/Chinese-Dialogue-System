@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-30 22:33:02
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-05 23:46:43
+LastEditTime: 2021-06-10 08:03:51
 FilePath: /Chinese-Dialogue-System/utils/similarity.py
 Description:
 '''
@@ -25,21 +25,25 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
 
 class TextSimilarity(object):
     def __init__(self):
-        logging.info('load dictionary')
+        logging.info('load dictionary from {}'.format(
+            os.path.join(Config.root_path, 'model/ranking/ranking.dict')))
         self.dictionary = corpora.Dictionary.load(
             os.path.join(Config.root_path, 'model/ranking/ranking.dict'))
-        logging.info('load corpus')
-        self.corpus = corpora.MmCorpus(os.path.join(
-            Config.root_path, 'model/ranking/ranking.mm'))
-        logging.info('load tfidf')
+        logging.info('load corpus from {}'.format(
+            os.path.join(Config.root_path, 'model/ranking/ranking.mm')))
+        self.corpus = corpora.MmCorpus(
+            os.path.join(Config.root_path, 'model/ranking/ranking.mm'))
+        logging.info('load tfidf from {}'.format(
+            os.path.join(Config.root_path, 'model/ranking/tfidf')))
         self.tfidf = models.TfidfModel.load(
             os.path.join(Config.root_path, 'model/ranking/tfidf'))
-        logging.info('load bm25')
         self.bm25 = BM25(do_train=False)
-        logging.info('load word2vec')
+        logging.info('load word2vec from {}'.format(
+            os.path.join(Config.root_path, 'model/ranking/w2v')))
         self.w2v_model = models.KeyedVectors.load(
             os.path.join(Config.root_path, 'model/ranking/w2v'))
-        logging.info('load fasttext')
+        logging.info('load fasttext from {}'.format(
+            os.path.join(Config.root_path, 'model/ranking/fast')))
         self.fasttext = models.FastText.load(
             os.path.join(Config.root_path, 'model/ranking/fast'))
 
@@ -155,26 +159,32 @@ class TextSimilarity(object):
         sim: cos, pearson, eucl
         '''
         assert method in ['w2v', 'tfidf', 'fasttext']
-        assert sim in ['cos', 'pearson', 'eucl']
-        a = self.tokenize(str_a)
-        b = self.tokenize(str_b)
+        assert sim in ['cos', 'pearson', 'eucl', 'wmd']
+        str_a, _ = self.tokenize(str_a)
+        str_b, _ = self.tokenize(str_b)
+        vec_a, vec_b, model = None, None, None
         if method == 'w2v':
-            vec_a = wam(a, self.w2v_model)
-            vec_b = wam(b, self.w2v_model)
-        elif method == 'fasttest':
+            vec_a = wam(str_a, self.w2v_model)
+            vec_b = wam(str_b, self.w2v_model)
+            model = self.w2v_model
+        elif method == 'fasttext':
             vec_a = wam(str_a, self.fasttext)
             vec_b = wam(str_b, self.fasttext)
+            model = self.fasttext
         else:
             vec_a = np.array(
                 self.tfidf[self.dictionary.doc2bow(str_a.split())]).mean()
             vec_b = np.array(
                 self.tfidf[self.dictionary.doc2bow(str_b.split())]).mean()
+        result = None
         if sim == 'cos':
             result = self.cos_sim(vec_a, vec_b)
         elif sim == 'person':
             result = self.pearson_sim(vec_a, vec_b)
-        else:
+        elif sim == 'ecul':
             result = self.eucl_sim(vec_a, vec_b)
+        elif sim == 'wmd' and model is not None:
+            result = model.wmdistance(str_a, str_b)
 
         return result
 
@@ -197,16 +207,13 @@ class TextSimilarity(object):
             'w2v_wmd':
             self.tokenSimilarity(str1, str2, method='w2v', sim='wmd'),
             'fast_cos':
-            self.tokenSimilarity(str1, str2, method='fasttest', sim='cos'),
+            self.tokenSimilarity(str1, str2, method='fasttext', sim='cos'),
             'fast_eucl':
-            self.tokenSimilarity(str1, str2, method='fasttest', sim='eucl'),
+            self.tokenSimilarity(str1, str2, method='fasttext', sim='eucl'),
             'fast_pearson':
-            self.tokenSimilarity(str1,
-                                 str2,
-                                 method='fasttest',
-                                 sim='pearson'),
+            self.tokenSimilarity(str1, str2, method='fasttext', sim='pearson'),
             'fast_wmd':
-            self.tokenSimilarity(str1, str2, method='fasttest', sim='wmd'),
+            self.tokenSimilarity(str1, str2, method='fasttext', sim='wmd'),
             'tfidf_cos':
             self.tokenSimilarity(str1, str2, method='tfidf', sim='cos'),
             'tfidf_eucl':

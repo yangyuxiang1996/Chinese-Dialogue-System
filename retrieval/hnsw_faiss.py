@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-22 09:24:45
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-08 22:42:43
+LastEditTime: 2021-06-10 08:00:30
 FilePath: /Chinese-Dialogue-System/retrieval/hnsw_faiss.py
 '''
 import time
@@ -39,10 +39,10 @@ def wam(sentence, w2v_model):
     sen_len = len(sentence)
     sen_vec = np.zeros(w2v_model.vector_size).astype("float32")
     for word in sentence:
-        if word in w2v_model:
+        try:
             wv = w2v_model.wv[word]
             sen_vec += wv
-        else:
+        except Exception as e:
             sen_vec += np.random.randn(300).astype("float32")
 
     return sen_vec / sen_len
@@ -78,14 +78,20 @@ class HNSW(object):
         data_path：问答pair数据所在路径
         @return: 包含句向量的dataframe
         '''
-        logging.info("Reading data from %s" % data_path)
-        data = pd.read_csv(data_path, header=0)
-        data['custom_vec'] = data['custom'].progress_apply(
-            lambda s: wam(clean(s), self.w2v_model))
-        # data['assistance_vec'] = data['assistance'].apply(
-        #     lambda s: wam(s, self.w2v_model))
-        data = data.dropna()
-        logging.info("data: %s" % data.head(5))
+        if os.path.exists(data_path.replace('.csv', '_for_hnsw.pkl')):
+            logging.info("Reading data from %s" % data_path.replace('.csv', '_for_hnsw.pkl'))
+            data = pd.read_pickle(data_path.replace('.csv', '_for_hnsw.pkl'))
+            logging.info("data: %s" % data.head(5))
+        else:
+            logging.info("Reading data from %s" % data_path)
+            data = pd.read_csv(data_path, header=0)
+            data['custom_vec'] = data['custom'].progress_apply(
+                lambda s: wam(clean(s), self.w2v_model))
+            # data['assistance_vec'] = data['assistance'].apply(
+            #     lambda s: wam(s, self.w2v_model))
+            data = data.dropna()
+            logging.info("data: %s" % data.head(5))
+            data.to_pickle(data_path.replace('.csv', '_for_hnsw.pkl'))
         return data
 
     def evaluate(self, index, vecs):

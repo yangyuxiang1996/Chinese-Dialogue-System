@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-31 15:22:01
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-06 11:38:23
+LastEditTime: 2021-06-10 08:54:26
 FilePath: /Chinese-Dialogue-System/ranking/model.py
 Description:
 '''
@@ -46,9 +46,9 @@ class BertModelTrain(nn.Module):
                             attention_mask=attention_mask,
                             token_type_ids=token_type_ids,
                             labels=labels)
+#         logging.info("outputs: {}".format(outputs))
 
-        loss = outputs.loss
-        logits = outputs.logits
+        loss, logits = outputs
         probabilities = nn.functional.softmax(logits, dim=-1)
 
         return loss, logits, probabilities
@@ -68,8 +68,8 @@ class BertModelPredict(nn.Module):
     def forward(self, input_ids, attention_mask, token_type_ids):
         output = self.bert(input_ids=input_ids,
                            attention_mask=attention_mask,
-                           token_type_ids=token_type_ids)
-        logits = output.logits
+                           token_type_ids=token_type_ids,)
+        logits = output[0]
         probabilities = nn.functional.softmax(logits, dim=-1)
         return logits, probabilities
 
@@ -79,7 +79,7 @@ class MatchNN(nn.Module):
                  model_path=Config.bert_model,
                  vocab_path=Config.vocab_path,
                  data_path=os.path.join(Config.root_path, 'data/ranking/train.tsv'),
-                 is_cuda=False,
+                 is_cuda=True,
                  max_sequence_length=128):
         super(MatchNN, self).__init__()
         self.vocab_path = vocab_path
@@ -102,9 +102,12 @@ class MatchNN(nn.Module):
 
     def predict(self, q1, q2):
         q1 = self.bert_tokenizer.tokenize(q1)
+#         print(q1)
         q2 = self.bert_tokenizer.tokenize(q2)
+#         print(q2)
 
-        result = list(map(self.dataPro.trunate_and_pad, q1, q2))
+        result = [self.dataPro.trunate_and_pad(q1,q2)]
+#         print("result:", result)
         seqs = [i[0] for i in result]
         seq_ids = torch.Tensor([i[1] for i in result]).type(torch.long)
         seq_masks = torch.Tensor([i[2] for i in result]).type(torch.long)
@@ -113,11 +116,18 @@ class MatchNN(nn.Module):
             seq_ids = seq_ids.to(self.device)
             seq_masks = seq_masks.to(self.device)
             seq_segments = seq_segments.to(self.device)
+#             logging.info("seqs: {}".format(seqs))
+#             logging.info("seq_ids: {}".format(seq_ids))
+#             logging.info("seq_masks: {}".format(seq_masks))
+#             logging.info("seq_segments: {}".format(seq_segments))
         with torch.no_grad():
-            output = self.model(input_ids=seq_ids,
-                                attention_mask=seq_masks,
-                                token_type_ids=seq_segments)
-            logits = output.logits.cpu().detach().numpy()  # shape: (batch_size, num_labels)
-            label = logits.argmax()
-            score = logits.tolist()[0][label]
+            logits, probabilities = self.model(input_ids=seq_ids,
+                                               attention_mask=seq_masks,
+                                               token_type_ids=seq_segments)
+            probabilities = probabilities.cpu().detach().numpy()  # shape: (batch_size, num_labels)
+            label = probabilities.argmax()
+#             print('----------------------')
+#             print(probabilities, probabilities.shape)
+#             print(label)
+            score = probabilities.tolist()[0][label]
         return label, score

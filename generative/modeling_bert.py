@@ -28,16 +28,16 @@ import torch.utils.checkpoint
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
-from .activations import gelu, gelu_new, swish
-from .configuration_bert import BertConfig
-from .file_utils import (
+from transformers.activations import gelu, gelu_new, swish
+from transformers import BertConfig, BertTokenizer
+from transformers.file_utils import (
     ModelOutput,
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_callable,
     replace_return_docstrings,
 )
-from .modeling_outputs import (
+from transformers.modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPooling,
     CausalLMOutput,
@@ -48,7 +48,7 @@ from .modeling_outputs import (
     SequenceClassifierOutput,
     TokenClassifierOutput,
 )
-from .modeling_utils import (
+from transformers.modeling_utils import (
     PreTrainedModel,
     apply_chunking_to_forward,
     find_pruneable_heads_and_indices,
@@ -782,7 +782,7 @@ class BertModel(BertPreTrainedModel):
         elif input_ids is not None:
             input_shape = input_ids.size()
         elif inputs_embeds is not None:
-            input_shape = inputs_embeds.size()[:-1]
+            input_shape = inputs_embeds.size()[:-1]  # (batch_size, sequence_length)
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 

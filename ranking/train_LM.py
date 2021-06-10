@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-30 19:21:32
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-30 22:24:07
+LastEditTime: 2021-06-10 08:54:56
 FilePath: /Chinese-Dialogue-System/ranking/train_lm.py
 Description:
 '''
@@ -36,7 +36,10 @@ class Trainer(object):
             Config.root_path, "data/ranking/dev.tsv"))
         self.test_data = self.read_data(os.path.join(
             Config.root_path, "data/ranking/test.tsv"))
-        self.stop_words = open(Config.stop_words).readlines()
+        self.stop_words = []
+        with open(Config.stop_words, 'r') as f:
+            for line in f.readlines():
+                self.stop_words.append(line.strip())
         self.data = self.train_data + self.dev_data + self.test_data
         self.preprocessor()
         self.train()
@@ -58,13 +61,13 @@ class Trainer(object):
 
     def preprocessor(self):
         logging.info(" loading data.... ")
-        self.data = [[word for word in jieba.cut(sentence) if word not in self.stop_words]
+        self.data = [[word for word in jieba.cut(sentence)]
                      for sentence in self.data]
         self.freq = defaultdict(int)
         for sentence in self.data:
             for word in sentence:
                 self.freq[word] += 1
-        self.data = [[word for word in sentence if self.freq[word] > 1]
+        self.data = [[word for word in sentence ]
                      for sentence in self.data]
         logging.info(' building dictionary....')
         self.dictionary = corpora.Dictionary(self.data)
@@ -83,7 +86,7 @@ class Trainer(object):
         cores = multiprocessing.cpu_count()
         self.w2v = Word2Vec(min_count=2,
                             window=2,
-                            vector_size=300,
+                            size=300,
                             sample=6e-5,
                             alpha=0.03,
                             min_alpha=0.0007,
@@ -94,14 +97,14 @@ class Trainer(object):
                        epochs=15,
                        total_examples=self.w2v.corpus_count)
         logging.info("training model fasttext...")
-        self.fast = FastText(vector_size=300,
+        self.fast = FastText(size=300,
                              window=3,
                              min_count=1,
                              min_n=3,
                              max_n=6,
-                             word_ngrams=1)
+                             word_ngrams=2)
         self.fast.build_vocab(self.data)
-        self.fast.train(corpus_iterable=self.data, 
+        self.fast.train(self.data, 
                         epochs=15,
                         total_examples=self.fast.corpus_count,
                         total_words=self.fast.corpus_total_words)

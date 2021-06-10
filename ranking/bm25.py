@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-27 22:14:08
 LastEditors: yangyuxiang
-LastEditTime: 2021-05-27 23:49:33
+LastEditTime: 2021-06-09 22:48:54
 FilePath: /Chinese-Dialogue-System/ranking/bm25.py
 '''
 import logging
@@ -29,7 +29,10 @@ logging.basicConfig(format="%(levelname)s - %(asctime)s: %(message)s",
 
 
 class BM25(object):
-    def __init__(self, do_train=True, train_path=None, save_path=None):
+    def __init__(self,
+                 do_train=True,
+                 train_path=os.path.join(Config.root_path, 'data/ranking/train.tsv'),
+                 save_path=os.path.join(Config.root_path, 'model/ranking')):
         self.data = pd.read_csv(train_path, sep='\t', header=0,
                                 quoting=csv.QUOTE_NONE,
                                 names=['question1', 'question2', 'target'])
@@ -40,7 +43,7 @@ class BM25(object):
             self.idf, self.avgdl = self.get_idf()
             self.save(save_path)
         else:
-            self.idf, self.avgdl = self.load(save_path)
+            self.load(save_path)
 
     def load_stop_words(self, path):
         stop_words = []
@@ -74,6 +77,7 @@ class BM25(object):
         return idf, avgdl
 
     def load(self, save_path):
+        logging.info("load bm25 from {}".format(os.path.join(save_path, 'bm25_idf.bin')))
         self.idf = joblib.load(os.path.join(save_path, 'bm25_idf.bin'))
         self.avgdl = joblib.load(os.path.join(save_path, 'bm25_avgdl.bin'))
 
