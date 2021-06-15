@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-30 19:21:32
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-10 08:54:56
+LastEditTime: 2021-06-11 11:13:16
 FilePath: /Chinese-Dialogue-System/ranking/train_lm.py
 Description:
 '''
@@ -67,7 +67,7 @@ class Trainer(object):
         for sentence in self.data:
             for word in sentence:
                 self.freq[word] += 1
-        self.data = [[word for word in sentence ]
+        self.data = [[word for word in sentence]
                      for sentence in self.data]
         logging.info(' building dictionary....')
         self.dictionary = corpora.Dictionary(self.data)

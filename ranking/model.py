@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-31 15:22:01
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-10 08:54:26
+LastEditTime: 2021-06-11 09:12:26
 FilePath: /Chinese-Dialogue-System/ranking/model.py
 Description:
 '''
@@ -79,7 +79,7 @@ class MatchNN(nn.Module):
                  model_path=Config.bert_model,
                  vocab_path=Config.vocab_path,
                  data_path=os.path.join(Config.root_path, 'data/ranking/train.tsv'),
-                 is_cuda=True,
+                 is_cuda=False,
                  max_sequence_length=128):
         super(MatchNN, self).__init__()
         self.vocab_path = vocab_path
@@ -92,7 +92,7 @@ class MatchNN(nn.Module):
 
     def load_model(self):
         self.model = BertModelPredict().to(self.device)
-        checkpoint = torch.load(self.model_path)
+        checkpoint = torch.load(self.model_path, map_location=torch.device('cpu'))
         self.model.load_state_dict(checkpoint, strict=False)
         self.model.eval()
         self.bert_tokenizer = BertTokenizer.from_pretrained(

@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-05-30 22:33:02
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-10 08:03:51
+LastEditTime: 2021-06-11 13:34:29
 FilePath: /Chinese-Dialogue-System/utils/similarity.py
 Description:
 '''
@@ -114,7 +114,7 @@ class TextSimilarity(object):
         for key in wordsa:
             cuta += key.word + " "
             seta.add(key.word)
-
+        cuta = cuta.strip()
         return [cuta, seta]
 
     def JaccardSim(self, str_a, str_b):
@@ -172,52 +172,66 @@ class TextSimilarity(object):
             vec_b = wam(str_b, self.fasttext)
             model = self.fasttext
         else:
-            vec_a = np.array(
-                self.tfidf[self.dictionary.doc2bow(str_a.split())]).mean()
-            vec_b = np.array(
-                self.tfidf[self.dictionary.doc2bow(str_b.split())]).mean()
+            vec_a = self.tfidf[self.dictionary.doc2bow(str_a.split())]
+            vec_b = self.tfidf[self.dictionary.doc2bow(str_b.split())]
+            # sparse vector -> dense vector
+            ids = list(map(lambda x: x[0], vec_a))
+            tfidf = list(map(lambda x: x[1], vec_a))
+            vec_a = np.zeros(len(self.dictionary))
+            vec_a[ids] = tfidf
+
+            ids = list(map(lambda x: x[0], vec_b))
+            tfidf = list(map(lambda x: x[1], vec_b))
+            vec_b = np.zeros(len(self.dictionary))
+            vec_b[ids] = tfidf
+            # vec_a = np.array(vec_a).mean()
+            # vec_b = np.array(vec_b).mean()
         result = None
         if sim == 'cos':
             result = self.cos_sim(vec_a, vec_b)
-        elif sim == 'person':
+        elif sim == 'pearson':
             result = self.pearson_sim(vec_a, vec_b)
-        elif sim == 'ecul':
+        elif sim == 'eucl':
             result = self.eucl_sim(vec_a, vec_b)
         elif sim == 'wmd' and model is not None:
-            result = model.wmdistance(str_a, str_b)
+            result = model.wv.wmdistance(str_a, str_b)
 
         return result
 
     def generate_all(self, str1, str2):
-        return {
-            'lcs':
-            self.lcs(str1, str2),
-            'edit_dist':
-            self.editDistance(str1, str2),
-            'jaccard':
-            self.JaccardSim(str1, str2),
-            'bm25':
-            self.bm25.cal_bm25(str1, str2),
-            'w2v_cos':
-            self.tokenSimilarity(str1, str2, method='w2v', sim='cos'),
-            'w2v_eucl':
-            self.tokenSimilarity(str1, str2, method='w2v', sim='eucl'),
-            'w2v_pearson':
-            self.tokenSimilarity(str1, str2, method='w2v', sim='pearson'),
-            'w2v_wmd':
-            self.tokenSimilarity(str1, str2, method='w2v', sim='wmd'),
-            'fast_cos':
-            self.tokenSimilarity(str1, str2, method='fasttext', sim='cos'),
-            'fast_eucl':
-            self.tokenSimilarity(str1, str2, method='fasttext', sim='eucl'),
-            'fast_pearson':
-            self.tokenSimilarity(str1, str2, method='fasttext', sim='pearson'),
-            'fast_wmd':
-            self.tokenSimilarity(str1, str2, method='fasttext', sim='wmd'),
-            'tfidf_cos':
-            self.tokenSimilarity(str1, str2, method='tfidf', sim='cos'),
-            'tfidf_eucl':
-            self.tokenSimilarity(str1, str2, method='tfidf', sim='eucl'),
-            'tfidf_pearson':
-            self.tokenSimilarity(str1, str2, method='tfidf', sim='pearson')
-        }
+        features = {}
+        features['lcs'] = self.lcs(str1, str2)
+        features['edit_dist'] = self.editDistance(str1, str2)
+        features['jaccard'] = self.JaccardSim(str1, str2)
+        features['bm25'] = self.bm25.cal_bm25(str1, str2)
+        features['w2v_cos'] = self.tokenSimilarity(
+            str1, str2, method='w2v', sim='cos')
+        features['w2v_eucl'] = self.tokenSimilarity(
+            str1, str2, method='w2v', sim='eucl')
+        features['w2v_pearson'] = self.tokenSimilarity(
+            str1, str2, method='w2v', sim='pearson')
+        features['w2v_wmd'] = self.tokenSimilarity(
+            str1, str2, method='w2v', sim='wmd')
+        features['fast_cos'] = self.tokenSimilarity(
+            str1, str2, method='fasttext', sim='cos')
+        features['fast_eucl'] = self.tokenSimilarity(
+            str1, str2, method='fasttext', sim='eucl')
+        features['fast_pearson'] = self.tokenSimilarity(
+            str1, str2, method='fasttext', sim='pearson')
+        features['fast_wmd'] = self.tokenSimilarity(
+            str1, str2, method='fasttext', sim='wmd')
+        features['tfidf_cos'] = self.tokenSimilarity(
+            str1, str2, method='tfidf', sim='cos')
+        features['tfidf_eucl'] = self.tokenSimilarity(
+            str1, str2, method='tfidf', sim='eucl')
+        features['tfidf_pearson'] = self.tokenSimilarity(
+            str1, str2, method='tfidf', sim='pearson')
+
+        return features
+
+
+if __name__ == '__main__':
+    question1 = '蚂蚁借呗借的钱怎么去看'
+    question2 = '怎么去看蚂蚁借呗借钱'
+    similarity = TextSimilarity()
+    features = similarity.generate_all(question1, question2)
