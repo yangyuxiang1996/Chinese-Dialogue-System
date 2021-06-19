@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-20 15:55:20
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-10 07:35:45
+LastEditTime: 2021-06-15 22:45:28
 FilePath: /Chinese-Dialogue-System/config.py
 '''
 import os
@@ -54,7 +54,7 @@ class Config(object):
         device = torch.device('cpu')
 
     max_seq_len = 128
-    batch_size = 32
+    batch_size = 8
     lr = 2e-05
     epochs = 10
 
@@ -62,3 +62,6 @@ class Config(object):
     vocab_path = os.path.join(root_path, 'lib/chinese_roberta_wwm_large_ext_pytorch/vocab.txt')
     config_path = os.path.join(root_path, 'lib/chinese_roberta_wwm_large_ext_pytorch/config.json')
     bert_model = os.path.join(root_path, 'model/ranking/roberta.best.pth.tar')
+
+    gradient_accumulation = 8
+    max_grad_norm = 5

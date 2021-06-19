@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-06 18:14:01
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-09 00:01:28
+LastEditTime: 2021-06-15 21:44:18
 FilePath: /Chinese-Dialogue-System/generative/bert_model.py
 Description:
 '''

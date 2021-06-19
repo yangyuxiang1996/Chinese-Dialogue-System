@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-08 21:40:32
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-09 16:01:54
+LastEditTime: 2021-06-15 23:20:32
 FilePath: /Chinese-Dialogue-System/generative/seq2seq.py
 Description:
 '''
@@ -49,7 +49,7 @@ class Seq2SeqModel(nn.Module):
                 token_type_id,
                 labels=None,
                 position_enc=None,
-                is_cuda=True,):
+                is_cuda=False,):
 
         input_shape = input_tensor.size()
         seq_len = input_shape[1]
@@ -72,11 +72,11 @@ class Seq2SeqModel(nn.Module):
         logits = self.decoder(squence_out)  # （batch_size, seq_len, vocab_size)
 
         if labels is not None:
-            logits = logits[:, :-1]
-            labels = input_tensor[:, 1:]
-            target_mask = token_type_id[:, 1:]
+            logits = logits[:, :-1].contiguous()
+            target_mask = token_type_id[:, 1:].contiguous()
+            labels = input_tensor[:, 1:].contiguous()
             loss = self.compute_loss(logits, labels, target_mask)
-            return logits, loss
+            return enc_layers, logits, loss, attention_layers
         else:
             return logits
 

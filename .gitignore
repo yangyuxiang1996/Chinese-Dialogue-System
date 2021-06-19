@@ -9,4 +9,5 @@ data/LCCC-base-split
 data/intention
 data/generative
 data/ranking_dataset.zip
+*.pkl
 

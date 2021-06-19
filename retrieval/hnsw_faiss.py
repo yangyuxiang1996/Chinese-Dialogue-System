@@ -5,7 +5,7 @@ Description:
 Author: yangyuxiang
 Date: 2021-05-22 09:24:45
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-10 08:00:30
+LastEditTime: 2021-06-19 17:06:35
 FilePath: /Chinese-Dialogue-System/retrieval/hnsw_faiss.py
 '''
 import time
@@ -195,7 +195,7 @@ if __name__ == "__main__":
                 Config.efSearch,
                 Config.hnsw_path,
                 Config.train_path)
-    test = '我要退款'
+    test = '我要转人工'
     print(hnsw.search(test, k=10))
     eval_vecs = np.stack(hnsw.data['custom_vec'].values).reshape(-1, 300).astype('float32')
     hnsw.evaluate(hnsw.index, eval_vecs[:10000])

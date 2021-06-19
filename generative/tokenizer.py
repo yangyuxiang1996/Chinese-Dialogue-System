@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-08 21:45:38
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-08 23:18:01
+LastEditTime: 2021-06-15 23:13:08
 FilePath: /Chinese-Dialogue-System/generative/tokenizer.py
 Description:
 '''
@@ -12,6 +12,7 @@ Description:
 import sys
 import unicodedata
 from typing import Dict, List
+import torch
 
 sys.path.append('..')
 from config import Config
@@ -173,12 +174,20 @@ class Tokenizer(BasicTokenizer):
         """
         return self._token_dict_inv[i]
 
-    def decode(self, ids):
+    def decode(self, input_ids):
         """转为可读文本
         """
-        tokens = self.ids_to_tokens(ids)
+        tokens = self.ids_to_tokens(input_ids)
 
         return "".join(tokens).strip()
+
+    def decode_tensor(self, input_tensors):
+        """转为可读文本
+        """
+        input_tensors = input_tensors.cpu().numpy().tolist()
+
+        tokens = list(map(self.decode, input_tensors))
+        return tokens
 
     def _tokenize(self, text):
         """基本分词函数
@@ -253,6 +262,11 @@ if __name__ == "__main__":
     # print(word2idx)
     tokenizer = Tokenizer(word2idx)
     input_ids, segment_ids = tokenizer.encode("你好啊，今天过的怎么样？", "我很好，谢谢你啦")
+    print(input_ids)
     text = tokenizer.decode(input_ids)
     print(text)
     print(segment_ids)
+    input_ids = torch.tensor(input_ids)
+    print(input_ids)
+    text = tokenizer.decode(input_ids)
+    print(text)

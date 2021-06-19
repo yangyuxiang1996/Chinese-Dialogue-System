@@ -4,7 +4,7 @@
 Author: Bingyu Jiang, Peixin Lin
 LastEditors: yangyuxiang
 Date: 2020-09-29 17:05:16
-LastEditTime: 2021-06-09 17:19:11
+LastEditTime: 2021-06-15 23:25:50
 FilePath: /Chinese-Dialogue-System/generative/train.py
 Desciption: Train a BERT seq2seq model.
 Copyright: 北京贪心科技有限公司版权所有。仅供教学目的使用。
@@ -30,7 +30,7 @@ import csv
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
                     datefmt='%H:%M:%S',
-                    levelname=logging.INFO)
+                    level=logging.INFO)
 
 
 def read_corpus(data_path):
@@ -39,7 +39,7 @@ def read_corpus(data_path):
                      header=None,
                      names=['src', 'tgt'],
                      quoting=csv.QUOTE_NONE
-                     ).dropna()
+                     ).dropna()[:8]
     sents_src = []
     sents_tgt = []
     for index, row in df.iterrows():
@@ -109,11 +109,12 @@ def collate_fn(batch):
 
 class Trainer:
     def __init__(self):
-        self.pretrain_model_path = Config.vocab_path
+        self.pretrain_model_path = os.path.join(Config.pretrained_path, 'pytorch_model.bin')
         self.batch_size = Config.batch_size
-        self.lr = Config.learning_rate
+        self.lr = Config.lr
         logging.info('加载字典')
         self.word2idx = load_chinese_base_vocab()
+        self.tokenizer = Tokenizer(self.word2idx)
         # 判断是否有可用GPU
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
@@ -177,6 +178,11 @@ class Trainer:
                                               position=0,
                                               leave=True)):
             token_ids, token_type_ids, target_ids = data
+            if batch_idx == 0:
+                logging.info('token: {}'.format(self.tokenizer.decode_tensor(token_ids)))
+                logging.info('token_ids: {}'.format(token_ids))
+                logging.info('token_type_ids: {}'.format(token_type_ids))
+                logging.info('target_ids: {}'.format(target_ids))
             token_ids = token_ids.to(self.device)
             token_type_ids = token_type_ids.to(self.device)
             target_ids = target_ids.to(self.device)
@@ -186,15 +192,15 @@ class Trainer:
                                 token_type_ids,
                                 labels=target_ids
                                 )
-            loss = loss / Config.gradient_accumulation
-            loss.backward()
+            loss = loss / Config.gradient_accumulation  # 损失标准化
+            loss.backward()  # 反向传播，计算梯度
             if (batch_idx + 1) % Config.gradient_accumulation == 0:
                 # 为计算当前epoch的平均loss
                 total_loss += loss.item()
                 # 更新参数
-                self.optimizer.step()
+                self.optimizer.step()  # 更新参数
                 # 清空梯度信息
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad()  # 梯度清零
             torch.nn.utils.clip_grad_norm_(
                 self.bert_model.parameters(), Config.max_grad_norm)
         end_time = time.time()
@@ -232,6 +238,8 @@ class Trainer:
         """存储当前模型参数"""
         save_path = os.path.join(
             Config.root_path, file_path + ".epoch.{}".format(str(epoch)))
+        if not os.path.exists(os.path.dirname(save_path)):
+            os.mkdir(os.path.dirname(save_path))
         torch.save(model.state_dict(), save_path)
         logging.info("{} saved!".format(save_path))
 
