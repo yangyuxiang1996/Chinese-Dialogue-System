@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-06 18:14:01
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-15 21:44:18
+LastEditTime: 2021-06-29 21:52:27
 FilePath: /Chinese-Dialogue-System/generative/bert_model.py
 Description:
 '''
@@ -341,7 +341,7 @@ class BertLMPredictionHead(nn.Module):
         self.decoder.bias = self.bias
 
     def forward(self, hidden_states):
-        hidden_states = self.transform(hidden_states)
+        hidden_states = self.transform(hidden_states)  # hidden_states: (batch, seq_len, hidden_size)
         hidden_states = self.decoder(hidden_states)
         return hidden_states
 

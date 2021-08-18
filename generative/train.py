@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# coding=utf-8
 '''
-Author: Bingyu Jiang, Peixin Lin
+Author: yangyuxiang
+Date: 2021-06-09 16:05:36
 LastEditors: yangyuxiang
-Date: 2020-09-29 17:05:16
-LastEditTime: 2021-06-15 23:25:50
+LastEditTime: 2021-06-29 21:38:40
 FilePath: /Chinese-Dialogue-System/generative/train.py
-Desciption: Train a BERT seq2seq model.
-Copyright: 北京贪心科技有限公司版权所有。仅供教学目的使用。
+Description:
 '''
+
 import sys
 sys.path.append('..')
 import logging
@@ -178,11 +178,11 @@ class Trainer:
                                               position=0,
                                               leave=True)):
             token_ids, token_type_ids, target_ids = data
-            if batch_idx == 0:
-                logging.info('token: {}'.format(self.tokenizer.decode_tensor(token_ids)))
-                logging.info('token_ids: {}'.format(token_ids))
-                logging.info('token_type_ids: {}'.format(token_type_ids))
-                logging.info('target_ids: {}'.format(target_ids))
+#             if batch_idx == 0:
+#                 logging.info('token: {}'.format(self.tokenizer.decode_tensor(token_ids)))
+#                 logging.info('token_ids: {}'.format(token_ids))
+#                 logging.info('token_type_ids: {}'.format(token_type_ids))
+#                 logging.info('target_ids: {}'.format(target_ids))
             token_ids = token_ids.to(self.device)
             token_type_ids = token_type_ids.to(self.device)
             target_ids = target_ids.to(self.device)
@@ -192,15 +192,15 @@ class Trainer:
                                 token_type_ids,
                                 labels=target_ids
                                 )
-            loss = loss / Config.gradient_accumulation  # 损失标准化
-            loss.backward()  # 反向传播，计算梯度
+            loss = loss / Config.gradient_accumulation
+            loss.backward()
             if (batch_idx + 1) % Config.gradient_accumulation == 0:
                 # 为计算当前epoch的平均loss
                 total_loss += loss.item()
                 # 更新参数
-                self.optimizer.step()  # 更新参数
+                self.optimizer.step()
                 # 清空梯度信息
-                self.optimizer.zero_grad()  # 梯度清零
+                self.optimizer.zero_grad()
             torch.nn.utils.clip_grad_norm_(
                 self.bert_model.parameters(), Config.max_grad_norm)
         end_time = time.time()
@@ -238,6 +238,7 @@ class Trainer:
         """存储当前模型参数"""
         save_path = os.path.join(
             Config.root_path, file_path + ".epoch.{}".format(str(epoch)))
+
         if not os.path.exists(os.path.dirname(save_path)):
             os.mkdir(os.path.dirname(save_path))
         torch.save(model.state_dict(), save_path)

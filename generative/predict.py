@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# coding=utf-8
 '''
-Author: Bingyu Jiang, Peixin Lin
+Author: yangyuxiang
+Date: 2021-06-09 17:20:10
 LastEditors: yangyuxiang
-Date: 2020-09-29 17:05:16
-LastEditTime: 2021-06-09 17:20:49
+LastEditTime: 2021-06-29 21:29:22
 FilePath: /Chinese-Dialogue-System/generative/predict.py
-Desciption: Predict using BERT seq2seq model.
-Copyright: 北京贪心科技有限公司版权所有。仅供教学目的使用。
+Description:
 '''
+
 import sys
 import os
 import torch
@@ -46,5 +46,5 @@ class bertSeq2Seq(object):
 if __name__ == "__main__":
     bs = bertSeq2Seq(os.path.join(Config.root_path,
                      'model/generative/bert.model.epoch.29'), Config.is_cuda)
-    text = '谢 谢 学 姐'
+    text = '新年快乐'
     print(bs.generate(text, k=5))

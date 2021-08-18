@@ -4,7 +4,7 @@
 Author: yangyuxiang
 Date: 2021-06-08 21:40:32
 LastEditors: yangyuxiang
-LastEditTime: 2021-06-15 23:20:32
+LastEditTime: 2021-06-29 22:28:38
 FilePath: /Chinese-Dialogue-System/generative/seq2seq.py
 Description:
 '''
@@ -59,7 +59,7 @@ class Seq2SeqModel(nn.Module):
         a_mask = ones.tril().float()  # 下三角矩阵, 只能看到前面的
         s_ex12 = token_type_id.unsqueeze(1).unsqueeze(2).float()  # （batch_size, 1, 1, seq_len）
         s_ex13 = token_type_id.unsqueeze(1).unsqueeze(3).float()  # （batch_size, 1, seq_len, 1)
-        # mask的作用：第一句话全部为1，表示全部可见，第二句话去下对角，表示当前时刻只能看到之前的token
+        # mask的作用：第一句话全部为1，表示全部可见，第二句话去下对角，表示当前时刻只能看到之前的token seq_to_seq mask
         a_mask = (1 - s_ex12) * (1 - s_ex13) + s_ex13 * a_mask
         enc_layers, pooled_output, attention_layers = \
             self.bert(input_tensor,
