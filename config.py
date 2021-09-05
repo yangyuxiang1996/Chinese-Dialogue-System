@@ -4,8 +4,8 @@
 Description: 
 Author: yangyuxiang
 Date: 2021-05-20 15:55:20
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-15 22:45:28
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-08-31 14:34:52
 FilePath: /Chinese-Dialogue-System/config.py
 '''
 import os
@@ -23,27 +23,27 @@ class Config(object):
     stop_words = os.path.join(root_path, 'data/file/stop_words.txt')
 
     # main
-    train_path = os.path.join(root_path, 'data/train_no_blank_all.csv')
+    train_path = os.path.join(root_path, 'data/train.csv')
     dev_path = os.path.join(root_path, 'data/dev.csv')
     test_path = os.path.join(root_path, 'data/test.csv')
     # intention
-    business_train = os.path.join(root_path, 'data/intention/business_all.train')
-    business_test = os.path.join(root_path, 'data/intention/business_all.test')
-    keyword_path = os.path.join(root_path, 'data/intention/key_word_all.txt')
+    business_train = os.path.join(root_path, 'data/intention/business.train')
+    business_test = os.path.join(root_path, 'data/intention/business.test')
+    keyword_path = os.path.join(root_path, 'data/intention/key_word.txt')
 
     ''' Intention '''
     # fasttext
-    ft_path = os.path.join(root_path, "model/intention/fasttext_all.bin")
+    ft_path = os.path.join(root_path, "model/intention/fasttext.bin")
 
     ''' Retrival '''
     # Embedding
-    w2v_path = os.path.join(root_path, "model/retrieval/word2vec_all")
+    w2v_path = os.path.join(root_path, "model/retrieval/word2vec")
 
     # HNSW parameters
     efConstruction = 100  # ef_construction defines a construction time/accuracy trade-off. 40 for default
     efSearch = 64
     M = 64  # M defines tha maximum number of outgoing connections in the graph
-    hnsw_path = os.path.join(root_path, 'model/retrieval/hnsw_index_all_efConstruction{}_efSearch{}' \
+    hnsw_path = os.path.join(root_path, 'model/retrieval/hnsw_index_efConstruction{}_efSearch{}' \
                              .format(efConstruction, efSearch))
 
     # 通用配置

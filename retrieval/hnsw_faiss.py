@@ -4,8 +4,8 @@
 Description: 
 Author: yangyuxiang
 Date: 2021-05-22 09:24:45
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-19 17:06:35
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-09-01 17:41:11
 FilePath: /Chinese-Dialogue-System/retrieval/hnsw_faiss.py
 '''
 import time
@@ -14,6 +14,7 @@ import sys
 import logging
 import pandas as pd
 import numpy as np
+import random
 from gensim.models import KeyedVectors
 import faiss
 sys.path.append('..')
@@ -48,9 +49,10 @@ def wam(sentence, w2v_model):
     return sen_vec / sen_len
 
 
-class HNSW(object):
+class Index(object):
     def __init__(self,
                  w2v_path,
+                 model_type=Config.model_type,
                  M=Config.M,
                  efConstruction=Config.efConstruction,
                  efSearch=Config.efSearch,
@@ -61,13 +63,14 @@ class HNSW(object):
         self.data = self.load_data(data_path)
         if model_path and os.path.exists(model_path):
             # 加载
-            self.index = self.load_hnsw(model_path)
+            self.index = self.load_model(model_path)
         elif data_path:
             # 训练
-            self.index = self.build_hnsw(model_path,
-                                         M=M,
-                                         efConstruction=efConstruction,
-                                         efSearch=efSearch)
+            self.index = self.build_model(model_type,
+                                          model_path,
+                                          M=M,
+                                          efConstruction=efConstruction,
+                                          efSearch=efSearch)
         else:
             logging.error('No existing model and no building data provided.')
 
@@ -85,11 +88,10 @@ class HNSW(object):
         else:
             logging.info("Reading data from %s" % data_path)
             data = pd.read_csv(data_path, header=0)
-            data['custom_vec'] = data['custom'].progress_apply(
-                lambda s: wam(clean(s), self.w2v_model))
-            # data['assistance_vec'] = data['assistance'].apply(
-            #     lambda s: wam(s, self.w2v_model))
-            data = data.dropna()
+            data = data.dropna(axis=0, subset=["custom"])
+            data['custom'] = data['custom'].progress_apply(lambda s: clean(s))
+            data = data[data['custom'].str.len() > 1]
+            data['custom_vec'] = data['custom'].progress_apply(lambda s: wam(s, self.w2v_model))
             logging.info("data: %s" % data.head(5))
             data.to_pickle(data_path.replace('.csv', '_for_hnsw.pkl'))
         return data
@@ -106,13 +108,24 @@ class HNSW(object):
         t0 = time.time()
         D, I = index.search(vecs, 1)
         t1 = time.time()
-
+        
+        logging.info("I: {}".format(I))
+        logging.info(self.data.iloc[I[0][0]])
+        logging.info("nq: {}".format(np.arange(nq)))
         missing_rate = (I == -1).sum() / float(nq)
         recall_at_1 = (I == np.arange(nq)).sum() / float(nq)
         logging.info('\t %7.3f ms per query, R@1 %.4f, missing_rate %.4f' %
                      ((t1 - t0) * 1000.0 / nq, recall_at_1, missing_rate))
 
-    def build_hnsw(self, to_file, M=64, efConstruction=2000, efSearch=32):
+    def build_model(self,
+                    model_type='IndexHNSWFlat',
+                    to_file=None,
+                    M=64,
+                    efConstruction=2000,
+                    efSearch=32,
+                    d=300,
+                    nlist=100,
+                    k=4):
         '''
         @description: 训练hnsw模型
         @param {type}
@@ -121,49 +134,66 @@ class HNSW(object):
         m：
         @return:
         '''
-        logging.info('Building hnsw index.')
+        logging.info('Building index.')
         # nb = len(self.data['assistance_vec'])
-        vecs = np.stack(
-            self.data['custom_vec'].values).reshape(-1, 300).astype("float32")
+        vecs = np.stack(self.data['custom_vec'].values).reshape(-1, d).astype("float32")
+        start_time = time.time()
         # vecs = np.zeros(shape=(nb, 300), dtype=np.float32)
         # for i, vec in enumerate(self.data['assistance_vec'].values):
         #     vecs[i, :] = vec
         dim = self.w2v_model.vector_size
-        index_hnsw = faiss.IndexHNSWFlat(dim, M)
-        index_hnsw.hnsw.efConstruction = efConstruction
-        index_hnsw.hnsw.efSearch = efSearch
-
-        res = faiss.StandardGpuResources()  # use a single GPU
-        gpu_index_hnsw = faiss.index_cpu_to_gpu(res, 0, index_hnsw)  # make it a GPU index
-        gpu_index_hnsw.verbose = True
+        if model_type == 'IndexHNSWFlat':
+            index = faiss.IndexHNSWFlat(dim, M)
+            index.hnsw.efConstruction = efConstruction
+            index.hnsw.efSearch = efSearch
+        elif model_type == 'IndexFlatL2':
+            index = faiss.IndexFlatL2(d)
+        elif model_type == 'IndexIVFFlat':
+            quantizer = faiss.IndexFlatL2(d)
+            index = faiss.IndexIVFFlat(quantizer, d, nlist)
+            assert not index.is_trained
+            index.train(vecs)  # IndexIVFFlat是需要训练的，这边是学习聚类
+            assert index.is_trained
+        elif model_type == 'IndexIVFPQ':
+            quantizer = faiss.IndexFlatL2(d)
+            index = faiss.IndexIVFPQ(quantizer, d, nlist, 5, 8)
+            index.train(vecs)
+        else:
+            raise ValueError("%s is not supported!" % model_type)
+        
+        index.verbose = True
+        # res = faiss.StandardGpuResources()  # use a single GPU
+        # gpu_index_hnsw = faiss.index_cpu_to_gpu(res, 0, index_hnsw)  # make it a GPU index
+        # gpu_index_hnsw.verbose = True
 
         logging.info('xb: {}'.format(vecs.shape))
         logging.info('dtype: {}'.format(vecs.dtype))
-        gpu_index_hnsw.add(vecs)
+        index.add(vecs)
 
-        logging.info("total: %s" % str(gpu_index_hnsw.ntotal))
+        logging.info("total: %s" % str(index.ntotal))
+        logging.info("using time: %s", time.time() - start_time)
 
         assert to_file is not None
         logging.info('Saving hnsw index to %s' % to_file)
         if not os.path.exists(os.path.dirname(to_file)):
             os.mkdir(os.path.dirname(to_file))
-        faiss.write_index(gpu_index_hnsw, to_file)
+        faiss.write_index(index, to_file)
 
-        self.evaluate(gpu_index_hnsw, vecs[:10000])
+        self.evaluate(index, vecs[:10000])
 
-        return gpu_index_hnsw
+        return index
 
-    def load_hnsw(self, model_path):
+    def load_model(self, model_path):
         '''
         @description: 加载训练好的hnsw模型
         @param {type}
         model_path： 模型保存的目录
         @return: hnsw 模型
         '''
-        logging.info(f'Loading hnsw index from {model_path}.')
-        hnsw = faiss.read_index(model_path)
+        logging.info(f'Loading index from {model_path}.')
+        index = faiss.read_index(model_path)
 
-        return hnsw
+        return index
 
     def search(self, text, k=5):
         '''
@@ -183,19 +213,24 @@ class HNSW(object):
 
         return pd.concat(
             (self.data.iloc[I[0]]['custom'].reset_index(),
-             self.data.iloc[I[0]]['assistance'].reset_index(drop=True),
+#              self.data.iloc[I[0]]['assistance'].reset_index(drop=True),
              pd.DataFrame(D.reshape(-1, 1), columns=['q_distance'])),
             axis=1)
 
 
 if __name__ == "__main__":
-    hnsw = HNSW(Config.w2v_path,
-                Config.M,
-                Config.efConstruction,
-                Config.efSearch,
-                Config.hnsw_path,
-                Config.train_path)
-    test = '我要转人工'
-    print(hnsw.search(test, k=10))
-    eval_vecs = np.stack(hnsw.data['custom_vec'].values).reshape(-1, 300).astype('float32')
-    hnsw.evaluate(hnsw.index, eval_vecs[:10000])
+    index = Index(Config.w2v_path,
+                  Config.model_type,
+                  Config.M,
+                  Config.efConstruction,
+                  Config.efSearch,
+                  Config.hnsw_path,
+                  Config.train_path)
+    test = '这款电脑能用不'
+#     test=index.data['custom'].iloc[0]
+    logging.info(test)
+    logging.info(index.search(test, k=5))
+    
+    eval_vecs = np.stack(index.data['custom_vec'].values).reshape(-1, 300).astype('float32')
+    index.evaluate(index.index, eval_vecs[:10000])
+    

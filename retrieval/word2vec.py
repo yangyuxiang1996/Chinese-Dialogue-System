@@ -4,8 +4,8 @@
 Description: 
 Author: yangyuxiang
 Date: 2021-05-21 12:32:33
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-05 23:13:12
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-08-31 17:11:48
 FilePath: /Chinese-Dialogue-System/retrieval/word2vec.py
 '''
 import os
@@ -59,6 +59,7 @@ def train_w2v(train, to_file):
     #     lambda x: [w for w in jieba.cut(x) if w not in stop_words_list])
     train['cut'] = train['clean'].apply(lambda x: x.split())
     unigram_sents = train['cut'].values
+    # 多词嵌入
     phrase_model = Phrases(
         unigram_sents, min_count=5, progress_per=10000, delimiter=b' ')
     bigram = Phraser(phrase_model)
@@ -69,7 +70,7 @@ def train_w2v(train, to_file):
     cores = multiprocessing.cpu_count()
     w2v_model = Word2Vec(min_count=2,
                          window=2,
-                         vector_size=300,
+                         size=300,
                          sample=6e-5,
                          alpha=0.03,
                          min_alpha=0.0007,

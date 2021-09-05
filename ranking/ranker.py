@@ -3,8 +3,8 @@
 '''
 Author: yangyuxiang
 Date: 2021-06-05 17:47:49
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-15 21:24:51
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-09-02 17:48:53
 FilePath: /Chinese-Dialogue-System/ranking/ranker.py
 Description:
 '''
@@ -55,7 +55,24 @@ class RANK(object):
                  model_path=os.path.join(Config.root_path, 'model/ranking/lightgbm')):
         self.ts = TextSimilarity()
         self.matchingNN = MatchNN()
-        self.ranker = lgb.LGBMRanker(**params)
+        self.ranker = lgb.LGBMRanker(task='train',  # 执行的任务类型
+                                     boosting_type='gbdt',  # 基学习器
+                                     objective='lambdarank',  # 排序任务(目标函数)
+                                     metric='ndcg',  # 度量的指标(评估函数)
+                                     max_position=10,  # @NDCG 位置优化
+                                     metric_freq=1,  # 每隔多少次输出一次度量结果
+                                     train_metric=True,  # 训练时就输出度量结果
+                                     ndcg_at=[10],
+                                     max_bin=255,  # 一个整数，表示最大的桶的数量。默认值为 255。lightgbm 会根据它来自动压缩内存。如max_bin=255 时，则lightgbm 将使用uint8 来表示特征的每一个值。
+                                     num_iterations=200,  # 迭代次数，即生成的树的棵数
+                                     learning_rate=0.01,  # 学习率
+                                     num_leaves=31,  # 叶子数
+                                     max_depth=6,
+                                     tree_learner='serial',  # 用于并行学习，‘serial’： 单台机器的tree learner
+                                     min_data_in_leaf=30,  # 一个叶子节点上包含的最少样本数量
+                                     verbose=2  # 显示训练时的信息
+                                     )
+        print(self.ranker.get_params())
         self.train_data = pd.read_csv(os.path.join(Config.root_path, 'data/ranking/train.tsv'),
                                       sep='\t',
                                       header=0,

@@ -6,13 +6,13 @@
 
 ## **项目介绍**
 
-智能客服机器人已经成为了客服系统的重要组成部分，帮助人工客服提升工作效率，为企业降低人工成本。作为智能客服的行业先驱，京东多年来致力打造全链路的客服机器人，最大化提升商家的接待效率和用户体验。目前智能机器人的对话生成策略已经在“京小智”、“京东JIMI“等智能客服机器广泛应用，在用户购买商品的售前以及售后环节，为数千万用户以及数十万商家进行服务，为商家降本增效，为用户提升购物客服体验。
+智能客服机器人已经成为了客服系统的重要组成部分，帮助人工客服提升工作效率，为企业降低人工成本。
 
 ## **整体框架**
 
-项目的执行流程如下图所示，首先用户发起单次对话，经过意图识别模块，对用户的输入进行文本分类，判断该对话是否与业务相关，如果相关，则转入检索式对话系统，否则进入闲聊系统。
+项目的执行流程如下图所示，首先用户发起单次对话，经过意图识别模块，这里的意图识别只简单的实现了一个二分类，即对用户的输入进行文本分类，判断该对话是否与业务相关，如果相关，则转入检索式对话系统，否则进入闲聊系统。
 
-<img src="images/image-20210605214418613.png" alt="image-20210605214418613" style="zoom:50%;" />
+<img src="images/008i3skNly1gtzs894ldkj60z60pggmo02.png" alt="image-20210831105340571" style="zoom:50%;" />
 
 项目所涉及到的所有技术如下图所示：
 
@@ -24,7 +24,7 @@
 
 这里的训练数据来自于京东客服真实场景下的对话数据，部分对话数据如下：
 
-* chat.txt，共2000w条：
+* chat.txt，共20,562,086条(考虑到速度和时间，这里只取了100w)：
 
 ```
 会话编号 顾客id sku 是否客服发送 是否转出 是否重复咨询 内容
@@ -39,6 +39,11 @@
 000002d0fa6d23510c40200e45ce293c        USERID_10503190 1       0       0               请问还有什么需要为您效劳的呢?#E-s[数字x]
 000002d0fa6d23510c40200e45ce293c        USERID_10503190 0       0       0               没事
 ```
+
+​	字段说明：
+
+1. 是否客服发送：0:顾客，1:客服，根据此标识将对话组织成单轮对话
+2. 会话编号：数据所属会话的唯一标识，根据此编号对对话数据进行聚合
 
 * 开发集，1000条：
 
@@ -68,30 +73,61 @@ a_47    customer_9Ta    100000323579    0       是
 a_47    customer_9Ta    100000323579    0       你看下我提交的订单
 ```
 
-### **数据清洗**
+### **数据预处理**
 
 执行`utils/preprocessing.py`进行数据预处理，生成三个csv文件：train.csv、dev.csv和test.csv。
 
-* 数据清洗，需要清洗的特殊字段有：
+* **数据清洗**，需要清洗的特殊字段有：
 
-```
-1. #E-s[数字x] #E-2[数字x] 等一系列数字—— 表情
-2. [ORDERID_10187709] —— 订单号
-3. [数字x] —— 数字
-4. https://item.jd.com/5898522.html —— 网址
-5. [地址x] —— 地址
-6. [链接x] —— 链接
-7. [金额x] —— 金额
-8. [日期x] —— 日期
-9. [时间x] —— 时间
-10. [站点x] —— 站点
-11. [组织机构x] ——组织机构
-12. [电话x] —— 电话
-13. [姓名x] —— 人名
-14. 对于表情，做法是直接删除。其他用希腊符号替换。
+```python
+def filter_content(sentence):
+    """
+    特殊字段有：
+    1. #E-s[数字x] #E-2[数字x] 等一系列数字—— 表情
+    2. [ORDERID_10187709] —— 订单号
+    3. [数字x] —— 数字
+    4. https://item.jd.com/5898522.html —— 网址
+    5. [地址x] —— 地址
+    6. [链接x] —— 链接
+    7. [金额x] —— 金额
+    8. [日期x] —— 日期
+    9. [时间x] —— 时间
+    10. [站点x] —— 站点
+    11. [组织机构x] ——组织机构
+    12. [电话x] —— 电话
+    13. [姓名x] —— 人名
+    对于表情，做法是直接删除。其他用希腊符号替换。
+    """
+    sep = Config.sep
+    if isinstance(sentence, str):
+        sentence = [sentence]
+    sentence = sep.join(sentence)
+    sentence = re.sub(
+        r"#E\-[\w]*(抱拳|傲慢|得意|蛋糕|呕吐|闭嘴|礼物|yaoping|柠檬|流泪|怒火|撇嘴|太阳|咒骂|糗|猪猪|足球|磕头|大兵|电话|灯泡|飞鸟|奋斗|高兴|击打|饥饿|咖啡|口罩|骷髅|可乐|疯狂|白眼|阴险|叹气|奸笑|发呆|害羞|飞吻|怒火|悲伤|胜利|生病|弱|可怜|咖啡|酷酷|眩晕|流泪|发抖|难过|右哼哼|惊恐|悲伤|犯困|愤怒|凋谢|哈欠|拥抱|抓狂|鄙视|时间|啤酒|勾引|左哼哼|月亮|偷笑|震惊|惊讶|跳跳|瞌睡|可爱|衰样|好|憨笑|水果|色色|黑线|微笑|流汗|握手|心碎|问号|大哭|亲亲|抠鼻|拜拜|鬼脸|香吻|米饭|花朵|尴尬|擦汗|安慰|委屈|调皮|爱心|我一定尽力为您解答的哦|很棒|鼓掌)+",
+        "α", sentence)
+    sentence = re.sub(r"#E\-[\w]+\[数字x]", "α", sentence)
+    sentence = re.sub(r"\[ORDERID_[\d]+]", "[订单x]", sentence)
+    sentence = re.sub(r"\[数字x]", "γ", sentence)
+    sentence = re.sub(r"\[链接x]", "ε", sentence)
+    sentence = re.sub(r"\[表情]", "α", sentence)
+    sentence = re.sub("<sep>", sep, sentence)
+    sentence = re.sub("<SEP>", sep, sentence)
+    sentence = re.sub(
+        r"(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?",
+        "ε", sentence)
+    sentence = re.sub(r"(http|ftp|https):\/\/ε", "ε", sentence)
+    sentence = re.sub(r"[\d]+.*[\d]+", "γ", sentence)
+    sentence = re.sub(r"【收到不支持的消息类型，暂无法显示】", " ", sentence)
+
+    sentence = re.sub(r"#E\-[s]*(ν|γ|π|ζ|ρ|α|ε)*", "α", sentence)
+    sentence = re.sub("α", " ", sentence)
+    sentence = re.sub("ε", "[链接x]", sentence)
+    sentence = re.sub("γ", "[数字x]", sentence)
+
+    return sentence
 ```
 
-* 将原始数据组织成成问答pair，或者将一次会话内容合并一起
+* **对话合并**：将原始数据组织成成问答pair，或者将一次会话内容合并一起
 
 数据预处理前后：
 
@@ -99,18 +135,18 @@ a_47    customer_9Ta    100000323579    0       你看下我提交的订单
 
 ```
 a_47	customer_9Ta	100000323579	0	怎么申请价保呢？
-a_47	customer_9Ta	100000323579	1	您好，京东客服1**号很高兴为您服务！!@@@!有什么问题我可以帮您处理或解决呢？<sep>您好，京东客服1**号很高兴为您服务！!@@@!您看是商品降价的问题么？<sep>您好，京东客服很高兴为您服务！	
+a_47	customer_9Ta	100000323579	1	您好，京东客服1**号很高兴为您服务！!@@@!有什么问题我可以帮您处理或解决呢？<sep>您好，京东客服1**号很高兴为您服务！!@@@!您看是商品降价的问题么？<sep>您好，京东客服很高兴为您服务！
 a_47	customer_9Ta	100000323579	0	你好
 a_47	customer_9Ta	100000323579	0	NULL
 a_47	customer_9Ta	100000323579	0	要求补差价
-a_47	customer_9Ta	100000323579	1	还请您稍等，正在为您查询~!@@@!	尼康（Nikon）D3500 18-55 入门VR防抖套机 单反数码照相机 女神/新手单反 轻巧便携!@@@!您好，请问是这个商品吗？<sep>稍等一下哦，我帮您看看!@@@!您看是这个订单么？订单号：***<sep>现在是商品有降价是吗	
+a_47	customer_9Ta	100000323579	1	还请您稍等，正在为您查询~!@@@!	尼康（Nikon）D3500 18-55 入门VR防抖套机 单反数码照相机 女神/新手单反 轻巧便携!@@@!您好，请问是这个商品吗？<sep>稍等一下哦，我帮您看看!@@@!您看是这个订单么？订单号：***<sep>现在是商品有降价是吗
 a_47	customer_9Ta	100000323579	0	是
 a_47	customer_9Ta	100000323579	0	你看下我提交的订单
 a_47	customer_9Ta	100000323579	0	才3099
 a_47	customer_9Ta	100000323579	0	刚提交的
 a_47	customer_9Ta	100000323579	0	8**
 a_47	customer_9Ta	100000323579	0	8**
-a_47	customer_9Ta	100000323579	1	稍等!@@@!帮您看看呢!@@@!#E-s01#E-s01#E-s01!@@@! 结果: 该商品符合价保规则，比价价保成功，应价保 [价保金额（单件）] * [价保商品数量] = 150.00 !@@@!您的价保已经为您提交申请，以后遇到降价也可以自行提交哦，这样会更快一点的呢，具体路径：电脑端：我的订单-左侧功能栏-客户服务-价格保护；手机端：我的-客户服务-价格保护<sep>NULL!@@@!好的，稍等这边为您申请一下就可以了哦<sep>NULL!@@@!好的，稍等一下，这边帮您申请看看	
+a_47	customer_9Ta	100000323579	1	稍等!@@@!帮您看看呢!@@@!#E-s01#E-s01#E-s01!@@@! 结果: 该商品符合价保规则，比价价保成功，应价保 [价保金额（单件）] * [价保商品数量] = 150.00 !@@@!您的价保已经为您提交申请，以后遇到降价也可以自行提交哦，这样会更快一点的呢，具体路径：电脑端：我的订单-左侧功能栏-客户服务-价格保护；手机端：我的-客户服务-价格保护<sep>NULL!@@@!好的，稍等这边为您申请一下就可以了哦<sep>NULL!@@@!好的，稍等一下，这边帮您申请看看
 a_47	customer_9Ta	100000323579	0	ok
 a_47	customer_9Ta	100000323579	1	很高兴遇到您这么善解人意的客户，请问还有其他还可以帮到您的吗？#E-s57#E-s57<sep>NULL<sep>NULL	
 ```
@@ -131,6 +167,26 @@ session_id,custom,assistance
 
 执行`intention/business.py`中的`Intention`类实现意图识别分类模块，所使用的数据来源是对话数据中的用户侧数据。
 
+补充：[搜索中的意图识别 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/261367997)
+
+
+
+* 传统的智能问答中的NLU意图识别流程：
+  * 中文分词：`jieba.tokenizer`
+  * 特征提取：`sklearn.feature_extraction.text.CountVectorizer`
+  * 分类：`EmbeddingIntentClassifier`
+* 意图识别的方法：
+  * 基于词典和规则的方法
+  * 基于ML和DL的方法：
+    * FastText：非常快
+    * TextCNN：快
+    * rnn系列并不推荐，一个是耗时，另一方面query的内容很短并不适合抽取序列信息。
+    * bert之类的大家伙，使用时需要谨慎，耗时虽然要考虑，但是性价比、提升空间之类的也要好好分析，fasttext效果很差，很多时候bert也不见得好到哪里去。
+  * 多标签分类，然后加排序
+  * 多个二分类级联，然后加排序
+
+
+
 ### fasttext：分本分类
 
 * **step1: 原始数据预处理（关键词识别），并处理成fasttext 需要的数据格式。**
@@ -139,7 +195,7 @@ session_id,custom,assistance
 
   2. 使用`jieba.posseg`进行词性标注，找出名词词性补充关键词词表；
 
-  3. **还可以采用的方案有：tfidf（暂未实现）**
+  3. **还可以采用的方案有：tfidf、TextRaner**
 
   4. fasttext格式：`"__label__" + label + "\t" + content + "\n"`，其中sequence以空格作为word之间的分隔符，具体说明见[Text classification · fastText](https://fasttext.cc/docs/en/supervised-tutorial.html#getting-and-preparing-the-data)
 
@@ -196,13 +252,53 @@ session_id,custom,assistance
   INFO - 09:00:44: f1: 0.9654
   ```
 
+
+
 ## **检索召回**
 
-在检索召回场景下，这里直接使用word2vec模型获取词向量，然后采用WAM(Word Average Model)提取句向量。代码：`/Chinese-Dialogue-System/retrieval/word2vec.py`
+在检索召回场景下，这里直接使用word2vec模型获取词向量，然后采用WAM(Word Average Model)提取句向量。
+
+补充：
+
+* **句向量的获取方式**：[自然语言处理中句向量获取方式的简要综述 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/350957155)
+
+  <img src="https://tva1.sinaimg.cn/large/008i3skNly1gu0aoxgzwfj615g0mwach02.jpg" alt="img-mwfANScr-1619582897697" style="zoom:50%;" />
+
+  1. 通过词向量获取句向量：
+
+     * 累加法
+
+     * 平均法：word average model，先提取词向量，然后求平均
+
+     * TF-IDF加权平均法
+
+     * SIF嵌入法
+
+       <img src="images/008i3skNly1gu0azwn9k6j61540c8n0a02.png" style="zoom:50%;" />
+
+  2. 通过模型直接获得句向量：
+
+     * Bert [NLP-Interview-Notes/bertCode4_word2embedding.md at main · km1994/NLP-Interview-Notes (github.com)](https://github.com/km1994/NLP-Interview-Notes/blob/main/NLPinterview/PreTraining/bert/bertCode4_word2embedding.md)
+
+       > BERT是N层 transformer构成的，每一层transformer的输出值，理论上来说都可以作为句向量。但真正进行使用，选取倒数第二层来作为句向量的效果是最好的，因为Bert的最后一层的值太接近于训练任务目标，Bert前面几层transformer的可能还未充分的学习到语义特征 ，因此选择Bert倒数第二层作为句向量是比较合适的。
+
+     * Doc2Vec
+
+* **检索召回评价指标**：
+
+  * Precision
+
+  * Recall
+
+  * F1-score
+
+  * MAP
+
+    > MAP，全称Mean Average Precision(平均准确率)。MAP是为解决Precision、Recall、F-score的单点值局限性的，同时考虑检索效果的排名情况。计算如下：假设有两个主题，主题1有4个相关网页，主题2有5个相关网页。某系统对于主题1检索出4个相关网页，其rank分别为1,2,4,7；对于主题2检索出3个相关网页，其rank分别为1,3,5。对于主题1，平均准确率为(1/1+2/2+3/4+4/7) / 4 = 0.83。对于主题2，平均准确率为(1/1+2/3+3/5+0+0) / 5 = 2.45。则MAP=(0.83+0.45) / 2 = 0.64
 
 ### **word2vec：获取词向量**
 
-* 注意：此处的embeddings以字为粒度
+* 注意：此处的embeddings以字为粒度，代码：`/Chinese-Dialogue-System/retrieval/word2vec.py`
 
   ```python
   		train['cut'] = train['clean'].apply(lambda x: x.split())
@@ -270,6 +366,8 @@ def wam(sentence, w2v_model):
 [Faiss: A library for efficient similarity search - Facebook Engineering (fb.com)](https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/)
 
 这里介绍了如何选择构建索引的方式：[Guidelines to choose an index · facebookresearch/faiss Wiki (github.com)](https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index)
+
+中文：[Faiss Indexs 的进一步了解 (waltyou.github.io)](https://waltyou.github.io/Faiss-Indexs/)
 
 这里采用的是**IndexHNSWFlat**。
 
@@ -357,17 +455,54 @@ def wam(sentence, w2v_model):
                        ((t1 - t0) * 1000.0 / nq, recall_at_1, missing_rate))
   ```
 
-  
+* HNSW参数选取及影响：
 
-## **Learning to Rank(L2R，排序学习)**
+  [广告行业中那些趣事系列38：广告搜索业务中海量高维数据集检索利器Faiss - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/398021738)
 
-在对每一条query召回topk个candidates之后，我们需要对每一个candidate进行打分，实现精排（重排），这里采用了传统的lightgdm模型计算score。所需的特征包含人工提取特征和深度匹配特征。
+  数据集大小：150w，向量维度：300
 
-<img src="images/image-20210526130318446.png" alt="image-20210526130318446" style="zoom:50%;" />
+  | 方法          | M    | efConstruction | efSearch | build time | query time | recall |
+  | ------------- | ---- | -------------- | -------- | ---------- | ---------- | ------ |
+  | IndexHNSWFlat | 16   | 40             | 64       | 6min       | 0.020ms    | 0.4120 |
+  | IndexHNSWFlat | 16   | 1000           | 64       | 40min      | 0.157ms    | 0.5966 |
+  | IndexHNSWFlat | 64   | 200            | 64       | 30min      | 0.219ms    | 0.6049 |
+  | IndexHNSWFlat | 64   | 1000           | 64       | 230min     | 0.237ms    | 0.6062 |
+  | IndexFlatL2   | -    | -              | -        | 0.7s       | 56.987ms   | 0.9499 |
+  | IndexIVFFlat  | -    | -              | -        | 11s        | 2.804ms    | 1.0000 |
+  | IndexIVFPQ    | -    | -              | -        | 64s        | 0.085ms    | 1.0000 |
+
+## **精排**
+
+在对每一条query召回topk个candidates之后，我们需要对每一个candidate进行打分，实现精排，这里有几种方案：
+
+* 无监督：语义相似度模型：Bert_flow，Sentence_Bert，Bert_whitening，SimBert
+
+* 有监督：排序模型
+  * [平安智能问答系统 ](https://mp.weixin.qq.com/s/R7TXWjeYUNPmLG0DVGcpJA)：pairwise，输入样本是<question1, question2>的pair对
+    * 语义向量，这个可以来自于各种预训练语言模型。
+    * 语义向量计算后得到的相似度矩阵。
+    * 问答对的共现情况（交集个数、重要度、占比等），如TF-IDF、BM25、编辑距离，属于文本层面的匹配。
+
+  <img src="https://tva1.sinaimg.cn/large/008i3skNly1gu29ccf7qrj60wp0u0n0y02.jpg" alt="image-20210902141657446" style="zoom:50%;" />
+
+  * [大众点评搜索基于知识图谱的深度学习排序实践 (qq.com)](https://mp.weixin.qq.com/s?__biz=MjM5NjQ5MTI5OA==&mid=2651750220&idx=1&sn=42df36757a7007808c56b53ee6832713&chksm=bd12a6018a652f17de2f66e28ba203bde1e8ae22155687fd3abe73b0336900a855c057e6ad38&mpshare=1&scene=1&srcid=0117dRsxGP0zSDCmQ4pTmBDF&pass_ticket=yoIK672aXk4WPiJRK3zkCxK5C5wwnua1%2B%2F115s%2FKJyXjdHQlvctIkGZpDsP%2FPVPZ#rd)
+
+    * 适用于搜索场景的深度学习Listwise排序算法——LambdaDNN
+    * 几种机器学习方法：
+
+    > - LR可以视作单层单节点的线性网络结构。模型优点是可解释性强。通常而言，良好的解释性是工业界应用实践比较注重的一个指标，它意味着更好的可控性，同时也能指导工程师去分析问题优化模型。但是LR需要依赖大量的人工特征挖掘投入，有限的特征组合自然无法提供较强的表达能力。
+    > - FM可以看做是在LR的基础上增加了一部分二阶交叉项。引入自动的交叉特征有助于减少人工挖掘的投入，同时增加模型的非线性，捕捉更多信息。FM能够自动学习两两特征间的关系，但更高量级的特征交叉仍然无法满足。
+    > - GBDT是一个Boosting的模型，通过组合多个弱模型逐步拟合残差得到一个强模型。树模型具有天然的优势，能够很好的挖掘组合高阶统计特征，兼具较优的可解释性。GBDT的主要缺陷是依赖连续型的统计特征，对于高维度稀疏特征、时间序列特征不能很好的处理。
+
+
+
+项目中采用了LTR中的pointwoise方式进行排序，用到的模型是LGBMRanker，对每一个query与candidate进行特征提取，然后计算score。所提取的特征包含人工定义特征和深度匹配特征。
+
+<img src="https://tva1.sinaimg.cn/large/008i3skNly1gu2asgiizdj618q0dkjsg02.jpg" alt="image-20210902150705259" style="zoom:50%;" />
 
 ### 数据
 
-数据集在ranking_datasets.zip中给到，其中包含三个文件，数据集是分别是蚂蚁金服提供的花呗客服数据和微众银行提供的微粒贷客服数据，数据都是问题相似度的标注数据，分别包含两个问题，以及表示他们是否相关的标签（0或1）。利用这些数据集我们可以构建一个pointwise的L2R数据集来训练我们的L2R模型（也可以采用负采样的方式来构建pairwise和listwise的数据集）。数据集的描述可查看以下链接：
+数据集在ranking_datasets.zip中，其中包含三个文件，数据集是分别是蚂蚁金服提供的花呗客服数据和微众银行提供的微粒贷客服数据，数据都是问题相似度的标注数据，分别包含两个问题，以及表示他们是否相关的标签（0或1）。利用这些数据集我们可以构建一个pointwise的L2R数据集来训练我们的L2R模型（也可以采用负采样的方式来构建pairwise和listwise的数据集）。数据集的描述可查看以下链接：
 
 *  [ATEC学习赛：NLP之问题相似度计算](https://dc.cloud.alipay.com/index#/topic/intro?id=8)
 

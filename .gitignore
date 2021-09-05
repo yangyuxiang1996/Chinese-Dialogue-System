@@ -10,4 +10,5 @@ data/intention
 data/generative
 data/ranking_dataset.zip
 *.pkl
-
+*.train
+*.test

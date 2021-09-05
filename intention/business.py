@@ -4,11 +4,10 @@
 Description: 
 Author: yangyuxiang
 Date: 2021-05-20 23:03:12
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-05 22:54:14
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-08-31 16:56:39
 FilePath: /Chinese-Dialogue-System/intention/business.py
 '''
-import jieba
 import logging
 import os
 import fasttext
@@ -37,9 +36,7 @@ class Intention(object):
                  model_train_file=Config.business_train,
                  # Path to save test data for intention.
                  model_test_file=Config.business_test,
-                 stop_words=Config.stop_words,
-                 from_train=False,
-                 only_train=False):
+                 stop_words=Config.stop_words):
         self.model_path = model_path
         self.data = pd.read_csv(data_path)
         self.test_data = pd.read_csv(test_path)
@@ -51,16 +48,13 @@ class Intention(object):
         if model_path and os.path.exists(model_path):
             self.fast = fasttext.load_model(model_path)
         else:
-            if only_train:
-                self.fast = self.train(model_train_file, model_test_file)
-            else:
-                self.keywords = self.build_keyword(
-                    sku_path, save_path=kw_path, from_train=from_train)
-                self.data_process(self.data, model_train_file)
-                self.data_process(self.test_data, model_test_file)
-                self.fast = self.train(model_train_file, model_test_file)
+            # self.keywords = self.build_keyword(sku_path, save_path=kw_path)
+            # self.data_process(self.data, model_train_file)
+            self.keywords = [word.strip() for word in open(kw_path, 'r').readlines()]
+            # self.data_process(self.test_data, model_test_file)
+            self.fast = self.train(model_train_file, model_test_file)
 
-    def build_keyword(self, sku_path, save_path, from_train=False):
+    def build_keyword(self, sku_path, save_path):
         '''
         @description: 构建业务咨询相关关键词，并保存，关键词来源：jieba词性标注，业务标注
         @param {type}
@@ -70,34 +64,30 @@ class Intention(object):
         '''
 
         logging.info('Building keywords.')
+        tokens = []
+        # Filtering words according to POS tags.
 
-        key_words = set()
+        tokens = self.data['custom'].dropna().progress_apply(
+            lambda x: [
+                token for token, pos in pseg.cut(x) if pos in ['n', 'vn', 'nz']
+                ])
+
+        key_words = set(
+            [tk for idx, sample in tokens.iteritems()
+                for tk in sample if len(tk) > 1])
+        logging.info('Key words built.')
+        sku = []
         with open(sku_path, 'r') as f:
-            for line in f.readlines():
-                if line.startswith('sku'):
-                    continue
-                line = line.strip().split()
-                if '/' in line[1]:
-                    for word in line[1].split('/'):
-                        key_words.add(word)
-                elif '、' in line[1]:
-                    for word in line[1].split('、'):
-                        key_words.add(word)
-                else:
-                    key_words.add(line[1])
-
-        if from_train:
-            for sentence in self.data['custom'].values:
-                sen_list = pseg.cut(sentence)
-                for token, pos in sen_list:
-                    if len(token) > 1 and pos in ['n', 'vn', 'nz']:
-                        key_words.add(token)
-
-        if save_path:
+            next(f)
+            for lines in f:
+                line = lines.strip().split('\t')
+                sku.extend(line[-1].split('/'))
+        key_words |= set(sku)
+        logging.info('Sku words merged.')
+        if save_path is not None:
             with open(save_path, 'w') as f:
-                for word in key_words:
-                    f.write(word + "\n")
-
+                for i in key_words:
+                    f.write(i + '\n')
         return key_words
 
     def data_process(self, data, model_data_file):
@@ -111,21 +101,15 @@ class Intention(object):
         @return:
         '''
         logging.info('processing data: %s.' % model_data_file)
-        data['custom'] = data['custom'].fillna('')
-        examples = []
-        for sentence in data['custom'].values:
-            if sentence != '':
-                if any(kw in sentence for kw in self.keywords):
-                    label = 1
-                else:
-                    label = 0
-            text = '\t'.join(['__label__%s' % label, clean(sentence)])
-            examples.append(text)
-
+        data = data.dropna()
+        data['is_business'] = data['custom'].progress_apply(
+            lambda x: 1 if any(kw in str(x) for kw in self.keywords) else 0)
         with open(model_data_file, 'w') as f:
-            for text in examples:
-                f.write(text+'\n')
-
+            for index, row in tqdm(data.iterrows(), total=data.shape[0]):
+                print(row['custom'])
+                if len(row['custom']) > 1:
+                    outline = clean(row['custom']) + "\t__label__" + str(int(row['is_business'])) + "\n"
+                    f.write(outline)
         logging.info('Processing data, finished!')
 
     def train(self, model_train_file, model_test_file):
@@ -142,8 +126,8 @@ class Intention(object):
         classifier = fasttext.train_supervised(model_train_file,
                                                label="__label__",
                                                dim=100,
-                                               epoch=20,
-                                               lr=0.5,
+                                               epoch=10,
+                                               lr=0.1,
                                                wordNgrams=2,
                                                loss='softmax',
                                                thread=5,
@@ -155,7 +139,6 @@ class Intention(object):
         classifier.save_model(self.model_path)
         logging.info('Model saved.')
         logging.info('used time: {:.4f}s'.format(time.time() - start_time))
-        
         return classifier
 
     def test(self, classifier, model_test_file):
@@ -195,8 +178,6 @@ if __name__ == "__main__":
                    test_path=Config.test_path,
                    sku_path=Config.ware_path,
                    model_path=Config.ft_path,
-                   kw_path=Config.keyword_path,
-                   from_train=True,
-                   only_train=False)
+                   kw_path=Config.keyword_path)
     print(it.predict('你好想问有卖鞋垫吗[SEP][链接x]'))
-    print(it.predict('今天天气真好'))
+    print(it.predict('你有对象吗'))

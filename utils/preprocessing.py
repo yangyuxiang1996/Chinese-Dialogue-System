@@ -4,8 +4,8 @@
 Description: 
 Author: yangyuxiang
 Date: 2021-05-20 16:12:22
-LastEditors: yangyuxiang
-LastEditTime: 2021-06-05 23:04:53
+LastEditors: Yuxiang Yang
+LastEditTime: 2021-09-01 10:27:50
 FilePath: /Chinese-Dialogue-System/utils/preprocessing.py
 '''
 
@@ -84,7 +84,7 @@ def read_file(path, is_train=False):
         sessions = set()
         session_id, custom_id, is_assistance, content = '', '', '', []
         for lines in f:
-            if len(sessions) > 50000:  # 50k sessions at most.
+            if len(sessions) > 300000:  # 50k sessions at most.
                 break
             line = lines.strip().replace(' ', '').split('\t')
             if len(line) < 5:  # Filtering short samples.
@@ -136,11 +136,10 @@ def clean(sent, sep='<'):
     @description: 过滤无用符号， 并对[SEP] 等分割符号， 假如前后空格，避免影响分词结果
     @param {type}
     sent: 句子
-    sep: 分隔符是以< or [ 开头
+    sep: 分隔符是以< or [ 开头 [SEP]
     @return: string 清洗后的句子
     '''
-    sent = re.sub(r"[\s+\.\!\/_,$%^*(+\"\')]+|[+——()?【】“”！，。？、~@#￥%……&*（）]+",
-                  "", sent)
+    sent = re.sub(r"[\s+\.\!\/_,$%^*(+\"\')]+|[+——()?【】“”！，。？、~@#￥%……&*（）]+", "", sent)
     i = 0
     tmp = []
     while i < len(sent):
@@ -221,6 +220,6 @@ if __name__ == "__main__":
     data = generate_data(train_raw,
                          save=True,
                          to_file=os.path.join(
-                             root_path, 'data/train_no_blank'),
+                             root_path, 'data/train'),
                          pair=True)
     logging.info('training set created.')
